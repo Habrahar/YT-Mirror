@@ -4,9 +4,7 @@ services:
     container_name: ytmirror
     restart: unless-stopped
     ports:
-      - "6080:6080"
-      - "5900:5900"
-      - "8888:8888"
+      - "3000:3000"
     volumes:
       - chrome-profile:/data/chrome-profile
     shm_size: "256mb"

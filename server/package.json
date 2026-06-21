@@ -1,0 +1,10 @@
+{
+  "name": "ytmirror",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.0",
+    "puppeteer-core": "^21.0.0",
+    "ws": "^8.14.0"
+  }
+}

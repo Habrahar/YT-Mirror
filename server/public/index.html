@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>YT Mirror</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 0;
+    }
+
+    #cover {
+      width: min(280px, 72vw);
+      height: min(280px, 72vw);
+      border-radius: 16px;
+      object-fit: cover;
+      background: #1e1e1e;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
+
+    #cover[src=""] { visibility: hidden; }
+
+    #title {
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+      padding: 0 8px;
+      max-width: 340px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #artist {
+      font-size: 15px;
+      color: #aaa;
+      text-align: center;
+      margin-bottom: 40px;
+      max-width: 340px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+
+    .btn {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      padding: 12px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      -webkit-user-select: none;
+    }
+
+    .btn:active { background: rgba(255,255,255,0.1); transform: scale(0.92); }
+
+    .btn.play {
+      background: #fff;
+      color: #000;
+      width: 68px;
+      height: 68px;
+    }
+
+    .btn.play:active { background: #ddd; }
+
+    #status {
+      font-size: 12px;
+      color: #444;
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+  <img id="cover" src="" alt="Обложка">
+  <div id="title">Подключение...</div>
+  <div id="artist"></div>
+
+  <div class="controls">
+    <button class="btn" onclick="cmd('prev')" aria-label="Предыдущий">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>
+      </svg>
+    </button>
+
+    <button class="btn play" id="play-btn" onclick="cmd('toggle')" aria-label="Пауза/Воспроизведение">
+      <svg id="icon-play" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+      <svg id="icon-pause" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+      </svg>
+    </button>
+
+    <button class="btn" onclick="cmd('next')" aria-label="Следующий">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Аудио поток с сервера -->
+  <audio id="audio" autoplay>
+    <source src="/stream" type="audio/mpeg">
+  </audio>
+
+  <div id="status">Подключение к серверу...</div>
+
+  <script>
+    const cover   = document.getElementById('cover');
+    const title   = document.getElementById('title');
+    const artist  = document.getElementById('artist');
+    const iconPlay  = document.getElementById('icon-play');
+    const iconPause = document.getElementById('icon-pause');
+    const status  = document.getElementById('status');
+
+    function applyTrack(data) {
+        title.textContent  = data.title  || '—';
+        artist.textContent = data.artist || '—';
+        if (data.thumb) cover.src = data.thumb;
+        iconPlay.style.display  = data.isPlaying ? 'none'  : '';
+        iconPause.style.display = data.isPlaying ? ''      : 'none';
+    }
+
+    function cmd(action) {
+        fetch('/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+        });
+    }
+
+    function connect() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws = new WebSocket(`${proto}://${location.host}`);
+
+        ws.onopen = () => { status.textContent = 'Подключено'; };
+
+        ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'track') applyTrack(msg.data);
+        };
+
+        ws.onclose = () => {
+            status.textContent = 'Переподключение...';
+            setTimeout(connect, 3000);
+        };
+
+        ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>
