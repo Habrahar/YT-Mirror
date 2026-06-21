@@ -57,26 +57,88 @@ async function getPlayerState() {
     }
 }
 
-// --- Browse: живой скриншот страницы ---
-app.get('/browse/snap', async (req, res) => {
-    if (!page) return res.status(503).send('not ready');
+const ITEM_SEL = 'ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer';
+
+// --- Browse: извлечь структуру текущей страницы ---
+app.get('/page', async (req, res) => {
+    if (!page) return res.status(503).json({ error: 'not ready' });
     try {
-        const buf = await page.screenshot({ type: 'jpeg', quality: 75 });
-        res.setHeader('Content-Type', 'image/jpeg');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.end(buf);
+        const data = await page.evaluate((ITEM_SEL) => {
+            const getText = (el, sels) => {
+                for (const s of sels) {
+                    const t = el.querySelector(s)?.textContent?.trim();
+                    if (t) return t;
+                }
+                return '';
+            };
+            const getThumb = (el) => {
+                return el.querySelector('img.yt-img-shadow, img[src*="googleusercontent"], img[src*="ggpht"], img')?.src || '';
+            };
+
+            const allItems = Array.from(document.querySelectorAll(ITEM_SEL));
+            const usedIdx = new Set();
+            const sections = [];
+
+            document.querySelectorAll('ytmusic-shelf, ytmusic-carousel-shelf').forEach(shelf => {
+                const title = getText(shelf, [
+                    '.title yt-formatted-string',
+                    'ytmusic-carousel-shelf-basic-header-renderer .title yt-formatted-string',
+                    'h2 yt-formatted-string',
+                ]);
+                const items = [];
+                shelf.querySelectorAll(ITEM_SEL).forEach(el => {
+                    const idx = allItems.indexOf(el);
+                    if (idx === -1) return;
+                    usedIdx.add(idx);
+                    items.push({
+                        idx,
+                        title:    getText(el, ['.title yt-formatted-string', 'yt-formatted-string.title']),
+                        subtitle: getText(el, ['.subtitle yt-formatted-string', '.byline yt-formatted-string', 'yt-formatted-string.subtitle']),
+                        thumb:    getThumb(el),
+                    });
+                });
+                if (items.length) sections.push({ title: title || null, items });
+            });
+
+            // Элементы не попавшие ни в одну секцию
+            const loose = allItems
+                .map((el, idx) => ({ el, idx }))
+                .filter(({ idx }) => !usedIdx.has(idx))
+                .map(({ el, idx }) => ({
+                    idx,
+                    title:    getText(el, ['.title yt-formatted-string', 'yt-formatted-string.title']),
+                    subtitle: getText(el, ['.subtitle yt-formatted-string', '.byline yt-formatted-string']),
+                    thumb:    getThumb(el),
+                }));
+            if (loose.length) sections.push({ title: null, items: loose });
+
+            return { url: location.href, pageTitle: document.title, sections };
+        }, ITEM_SEL);
+
+        res.json(data);
     } catch (e) {
-        res.status(500).send(e.message);
+        res.status(500).json({ error: e.message });
     }
 });
 
-// --- Browse: тап по координатам (нормализованные 0-1) ---
-app.post('/browse/tap', async (req, res) => {
+// --- Browse: кликнуть на элемент по индексу ---
+app.post('/page/click', async (req, res) => {
     if (!page) return res.json({ ok: false });
     try {
-        const { x, y } = req.body;
-        const vp = page.viewport();
-        await page.mouse.click(x * vp.width, y * vp.height);
+        const { idx } = req.body;
+        await page.evaluate((idx, ITEM_SEL) => {
+            const el = document.querySelectorAll(ITEM_SEL)[idx];
+            if (!el) return;
+            el.scrollIntoView({ block: 'center', behavior: 'instant' });
+            // Пробуем кликнуть кнопку воспроизведения, иначе сам элемент
+            const playBtn = el.querySelector('ytmusic-play-button-renderer, .play-button');
+            if (playBtn) {
+                playBtn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+                playBtn.click();
+            } else {
+                el.click();
+            }
+        }, idx, ITEM_SEL);
         await new Promise(r => setTimeout(r, 800));
         res.json({ ok: true });
     } catch (e) {
@@ -84,18 +146,11 @@ app.post('/browse/tap', async (req, res) => {
     }
 });
 
-// --- Browse: скролл ---
-app.post('/browse/scroll', async (req, res) => {
-    if (!page) return res.json({ ok: false });
-    const { dir } = req.body;
-    await page.evaluate((d) => window.scrollBy(0, d === 'down' ? 500 : -500), dir);
-    res.json({ ok: true });
-});
-
 // --- Browse: назад ---
-app.post('/browse/back', async (req, res) => {
+app.post('/page/back', async (req, res) => {
     if (!page) return res.json({ ok: false });
     await page.goBack().catch(() => {});
+    await new Promise(r => setTimeout(r, 600));
     res.json({ ok: true });
 });
 
