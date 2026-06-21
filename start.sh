@@ -7,6 +7,7 @@ dbus-daemon --system --fork --nopidfile || true
 sleep 1
 
 # PulseAudio через конфиг-файл — никаких pactl, никакого D-Bus в рантайме
+rm -f /var/run/pulse/native /var/run/pulse/*.pid
 mkdir -p /var/run/pulse
 pulseaudio --system \
     --disallow-exit \

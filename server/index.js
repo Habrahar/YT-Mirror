@@ -57,17 +57,46 @@ async function getPlayerState() {
     }
 }
 
-// --- Скриншот текущего состояния браузера ---
-app.get('/screenshot', async (req, res) => {
-    if (!page) return res.status(503).send('Browser not ready');
+// --- Browse: живой скриншот страницы ---
+app.get('/browse/snap', async (req, res) => {
+    if (!page) return res.status(503).send('not ready');
     try {
-        const buf = await page.screenshot({ type: 'jpeg', quality: 80 });
+        const buf = await page.screenshot({ type: 'jpeg', quality: 75 });
         res.setHeader('Content-Type', 'image/jpeg');
         res.setHeader('Cache-Control', 'no-cache');
         res.end(buf);
     } catch (e) {
         res.status(500).send(e.message);
     }
+});
+
+// --- Browse: тап по координатам (нормализованные 0-1) ---
+app.post('/browse/tap', async (req, res) => {
+    if (!page) return res.json({ ok: false });
+    try {
+        const { x, y } = req.body;
+        const vp = page.viewport();
+        await page.mouse.click(x * vp.width, y * vp.height);
+        await new Promise(r => setTimeout(r, 800));
+        res.json({ ok: true });
+    } catch (e) {
+        res.json({ ok: false, error: e.message });
+    }
+});
+
+// --- Browse: скролл ---
+app.post('/browse/scroll', async (req, res) => {
+    if (!page) return res.json({ ok: false });
+    const { dir } = req.body;
+    await page.evaluate((d) => window.scrollBy(0, d === 'down' ? 500 : -500), dir);
+    res.json({ ok: true });
+});
+
+// --- Browse: назад ---
+app.post('/browse/back', async (req, res) => {
+    if (!page) return res.json({ ok: false });
+    await page.goBack().catch(() => {});
+    res.json({ ok: true });
 });
 
 // --- Команды управления ---
