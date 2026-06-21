@@ -1,20 +1,23 @@
 #!/bin/bash
 set -e
 
-# Start PulseAudio with a unix socket
-pulseaudio -D \
-    --exit-idle-time=-1 \
-    --log-level=error \
-    --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-socket" \
-    --load="module-always-sink"
+# Очищаем возможные остатки от прошлого запуска
+rm -rf /var/run/pulse /tmp/pulse-*
 
-sleep 2
+# PulseAudio в system-режиме — единственный способ запустить от root в Docker
+pulseaudio --system \
+    --disallow-exit \
+    --disallow-module-loading=false \
+    --log-level=error \
+    --exit-idle-time=-1 &
+
+sleep 3
 
 # Virtual sink — Chromium outputs here, ffmpeg reads from its monitor
-pactl load-module module-null-sink \
+pactl --server unix:/var/run/pulse/native load-module module-null-sink \
     sink_name=virtual_out \
     sink_properties=device.description="VirtualOutput"
-pactl set-default-sink virtual_out
+pactl --server unix:/var/run/pulse/native set-default-sink virtual_out
 
 # Убираем lock-файлы Chromium — иначе он думает что уже запущен
 rm -f /data/chrome-profile/SingletonLock \
