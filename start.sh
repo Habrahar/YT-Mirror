@@ -16,4 +16,9 @@ pactl load-module module-null-sink \
     sink_properties=device.description="VirtualOutput"
 pactl set-default-sink virtual_out
 
+# Убираем lock-файлы Chromium — иначе он думает что уже запущен
+rm -f /data/chrome-profile/SingletonLock \
+      /data/chrome-profile/SingletonCookie \
+      /data/chrome-profile/SingletonSocket
+
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

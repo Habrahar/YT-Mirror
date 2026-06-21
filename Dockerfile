@@ -2,12 +2,17 @@ FROM debian:bookworm-slim
 
 ENV APP_PORT=3000
 
+# Тяжёлые пакеты — кэшируются отдельно, не инвалидируются при изменении server/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    ffmpeg \
+    pulseaudio \
+    && rm -rf /var/lib/apt/lists/*
+
+# Лёгкие пакеты — отдельный слой
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
-    pulseaudio \
-    ffmpeg \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
