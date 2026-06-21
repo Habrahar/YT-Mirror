@@ -6,6 +6,7 @@ services:
     ports:
       - "6080:6080"
       - "5900:5900"
+      - "8888:8888"
     volumes:
       - chrome-profile:/data/chrome-profile
     shm_size: "256mb"
