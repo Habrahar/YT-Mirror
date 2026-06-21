@@ -1,0 +1,16 @@
+services:
+  ytmirror:
+    build: .
+    container_name: ytmirror
+    restart: unless-stopped
+    ports:
+      - "6080:6080"
+      - "5900:5900"
+    volumes:
+      - chrome-profile:/data/chrome-profile
+    shm_size: "256mb"
+    env_file:
+      - .env
+
+volumes:
+  chrome-profile:
