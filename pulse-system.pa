@@ -1,0 +1,4 @@
+load-module module-native-protocol-unix auth-anonymous=1 socket=/var/run/pulse/native
+load-module module-null-sink sink_name=virtual_out sink_properties=device.description="VirtualOutput"
+load-module module-always-sink
+set-default-sink virtual_out

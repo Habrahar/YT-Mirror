@@ -1,25 +1,23 @@
 #!/bin/bash
 set -e
 
-# Очищаем возможные остатки от прошлого запуска
-rm -rf /var/run/pulse /tmp/pulse-*
+# D-Bus нужен PulseAudio в system-режиме
+mkdir -p /var/run/dbus
+dbus-daemon --system --fork --nopidfile || true
+sleep 1
 
-# PulseAudio в system-режиме — единственный способ запустить от root в Docker
+# PulseAudio через конфиг-файл — никаких pactl, никакого D-Bus в рантайме
+mkdir -p /var/run/pulse
 pulseaudio --system \
     --disallow-exit \
     --disallow-module-loading=false \
     --log-level=error \
-    --exit-idle-time=-1 &
+    --exit-idle-time=-1 \
+    --file=/etc/pulse/system.pa &
 
 sleep 3
 
-# Virtual sink — Chromium outputs here, ffmpeg reads from its monitor
-pactl --server unix:/var/run/pulse/native load-module module-null-sink \
-    sink_name=virtual_out \
-    sink_properties=device.description="VirtualOutput"
-pactl --server unix:/var/run/pulse/native set-default-sink virtual_out
-
-# Убираем lock-файлы Chromium — иначе он думает что уже запущен
+# Убираем lock-файлы Chromium
 rm -f /data/chrome-profile/SingletonLock \
       /data/chrome-profile/SingletonCookie \
       /data/chrome-profile/SingletonSocket

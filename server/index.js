@@ -57,6 +57,19 @@ async function getPlayerState() {
     }
 }
 
+// --- Скриншот текущего состояния браузера ---
+app.get('/screenshot', async (req, res) => {
+    if (!page) return res.status(503).send('Browser not ready');
+    try {
+        const buf = await page.screenshot({ type: 'jpeg', quality: 80 });
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.end(buf);
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
 // --- Команды управления ---
 app.post('/command', async (req, res) => {
     const { action } = req.body;

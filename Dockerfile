@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
     supervisor \
+    dbus \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data/chrome-profile /var/log/supervisor
@@ -23,6 +24,7 @@ COPY server/package*.json ./
 RUN npm install --omit=dev
 COPY server/ .
 
+COPY pulse-system.pa /etc/pulse/system.pa
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
